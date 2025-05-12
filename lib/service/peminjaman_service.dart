@@ -29,7 +29,7 @@ class PeminjamanService {
         'alasan_meminjam': alasanMeminjam,
         'barang_id': barangId,
         'jumlah': jumlah,
-        'tanggal_pinjam': tanggalPinjam,
+        'tanggal_pinjam': tanggalPinjam,  
         'status': status,
       }),
     );

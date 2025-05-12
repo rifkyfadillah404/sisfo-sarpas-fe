@@ -74,7 +74,7 @@ class _BarangPageState extends State<BarangPage> {
             itemBuilder: (context, index) {
               final barang = barangList[index];
               return Container(
-                decoration: BoxDecoration(
+                decoration: BoxDecoration(  
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: const [
@@ -93,7 +93,7 @@ class _BarangPageState extends State<BarangPage> {
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                         child: barang.foto != null && barang.foto!.isNotEmpty
                             ? Image.network(
-                                barang.foto!, // Menggunakan foto langsung dari API
+                                'http://127.0.0.1:8000${barang.foto}',// Menggunakan foto langsung dari API
                                 width: double.infinity,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => const Center(

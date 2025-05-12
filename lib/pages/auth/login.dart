@@ -99,8 +99,8 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Welcome Back!',
-                  style: GoogleFonts.poppins(
+                  'Selamat Datang',
+                  style: GoogleFonts.poppins( 
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: Colors.blueAccent,
@@ -108,7 +108,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Please login to continue',
+                  'Silakan Masuk Untuk Melanjutkan',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.black54,
