@@ -33,23 +33,25 @@ class _PengembalianPageState extends State<PengembalianPage> {
 
   // Function to load peminjaman list and filter items that are not returned yet
   Future<void> _loadPeminjamanUser() async {
-    try {
-      final list = await PeminjamanService.fetchPeminjamanUser(widget.token);
+  try {
+    final list = await PeminjamanService.fetchPeminjamanUser(widget.token);
 
-      // Filter only peminjaman that are not returned (status is not 'dikembalikan')
-      final belumDikembalikan = list.where((p) => p.status != 'dikembalikan').toList();
+    // Filter only peminjaman that are not returned or rejected
+    final belumDikembalikan = list.where((p) =>
+        p.status != 'returned' && p.status != 'rejected').toList();
 
-      setState(() {
-        _peminjamanList = belumDikembalikan;
-        _selectedPeminjaman =
-            belumDikembalikan.isNotEmpty ? belumDikembalikan.first : null;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data peminjaman: $e')),
-      );
-    }
+    setState(() {
+      _peminjamanList = belumDikembalikan;
+      _selectedPeminjaman =
+          belumDikembalikan.isNotEmpty ? belumDikembalikan.first : null;
+    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Gagal memuat data peminjaman: $e')),
+    );
   }
+}
+
 
   // Date picker for picking tanggal kembali
   Future<void> _pickTanggalKembali() async {
@@ -134,9 +136,7 @@ class _PengembalianPageState extends State<PengembalianPage> {
         backgroundColor: Colors.blueAccent,
         centerTitle: true,
       ),
-      body: _peminjamanList.isEmpty
-          ? const Center(child: Text('Semua peminjaman sudah dikembalikan'))
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Card(
                 shape: RoundedRectangleBorder(

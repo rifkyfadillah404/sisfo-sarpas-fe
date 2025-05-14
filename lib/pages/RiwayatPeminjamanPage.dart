@@ -43,6 +43,8 @@ class _RiwayatPeminjamanPageState extends State<RiwayatPeminjamanPage> {
         return Colors.green;
       case 'rejected':
         return Colors.red;
+      case 'returned':
+        return Colors.blue;  // Blue for returned status
       default:
         return Colors.orange;
     }
@@ -54,6 +56,8 @@ class _RiwayatPeminjamanPageState extends State<RiwayatPeminjamanPage> {
         return Icons.check_circle;
       case 'rejected':
         return Icons.cancel;
+      case 'returned':
+        return Icons.loop;  // Loop icon for returned
       default:
         return Icons.hourglass_empty;
     }
@@ -86,9 +90,9 @@ class _RiwayatPeminjamanPageState extends State<RiwayatPeminjamanPage> {
                   itemBuilder: (context, index) {
                     final item = _peminjamanList[index];
                     return Card(
-                      elevation: 4,
+                      elevation: 6,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(

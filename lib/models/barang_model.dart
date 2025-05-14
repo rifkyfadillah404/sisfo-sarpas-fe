@@ -21,7 +21,7 @@ class Barang {
       nama: json['nama'] ?? '',
       stok: json['stok'] ?? 0,
       idKategori: json['id_kategori'] ?? 0, // ✅ disesuaikan
-      foto: json['foto'] != null ? 'http://127.0.0.1:8000${json['foto']}' : null,
+      foto: json['foto'],
       kategori: Kategori.fromJson(json['kategori'] ?? {}),
     );
   }

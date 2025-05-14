@@ -77,7 +77,7 @@ class _HomePageState extends State<HomePage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history),
-            label: 'Riwayat',
+            label: 'Riwayat',   
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
