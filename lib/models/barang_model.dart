@@ -1,6 +1,7 @@
 class Barang {
   final int id;
   final String nama;
+  final String kode; // NEW
   final int stok;
   final int idKategori;
   final String? foto;
@@ -9,9 +10,10 @@ class Barang {
   Barang({
     required this.id,
     required this.nama,
+    required this.kode, // NEW
     required this.stok,
     required this.idKategori,
-    required this.foto,
+    this.foto,
     required this.kategori,
   });
 
@@ -19,8 +21,9 @@ class Barang {
     return Barang(
       id: json['id'],
       nama: json['nama'] ?? '',
+      kode: json['kode'] ?? '', // NEW
       stok: json['stok'] ?? 0,
-      idKategori: json['id_kategori'] ?? 0, // ✅ disesuaikan
+      idKategori: json['id_kategori'] ?? 0,
       foto: json['foto'],
       kategori: Kategori.fromJson(json['kategori'] ?? {}),
     );

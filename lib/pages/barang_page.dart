@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sisfo_fe/models/barang_model.dart';
 import 'package:sisfo_fe/service/barang_service.dart';
+import 'package:sisfo_fe/pages/barang_detail_page.dart';
 
 class BarangPage extends StatefulWidget {
   final String token;
@@ -17,6 +18,7 @@ class _BarangPageState extends State<BarangPage> {
   List<String> _kategoriList = [];
   String? _selectedKategori;
   String _searchQuery = '';
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -29,16 +31,24 @@ class _BarangPageState extends State<BarangPage> {
       final list = await BarangService().fetchBarang(widget.token);
       setState(() {
         _allBarangList = list;
-        _filteredBarangList = list;  // Initially show all items
+        _filteredBarangList = list;
         _kategoriList = _getKategoriList(list);
-        _kategoriList.insert(0, 'Semua'); // Menambahkan pilihan 'Semua' di kategori
+        _kategoriList.insert(0, 'Semua');
+        _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _filteredBarangList = [];
+        _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat barang: $e')),
+        SnackBar(
+          content: Text('Gagal memuat barang: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(12),
+        ),
       );
     }
   }
@@ -53,193 +63,346 @@ class _BarangPageState extends State<BarangPage> {
 
   void _filterBarang() {
     setState(() {
-      _filteredBarangList = _allBarangList
-          .where((barang) =>
-              (_selectedKategori == null ||
-                  _selectedKategori == 'Semua' ||
-                  barang.kategori.namaKategori == _selectedKategori) &&
-              barang.nama.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
+      _filteredBarangList = _allBarangList.where((barang) {
+        final matchKategori = _selectedKategori == null ||
+            _selectedKategori == 'Semua' ||
+            barang.kategori.namaKategori == _selectedKategori;
+        final matchSearch = barang.nama
+            .toLowerCase()
+            .contains(_searchQuery.toLowerCase());
+        return matchKategori && matchSearch;
+      }).toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F9FC),
-      appBar: AppBar(
-        backgroundColor: Colors.blueAccent,
-        title: Text(
-          "Daftar Barang",
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Padding(
+    return Column(
+      children: [
+        // Search & Filter Area
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (query) {
-                      setState(() {
-                        _searchQuery = query;
-                      });
-                      _filterBarang();
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Cari Barang',
-                      prefixIcon: Icon(Icons.search),
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.blueAccent),
-                      ),
-                    ),
-                  ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
                 ),
-                const SizedBox(width: 12),
-                DropdownButton<String>(
-                  value: _selectedKategori,
-                  hint: Text('Kategori'),
-                  onChanged: (String? newValue) {
+              ],
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (query) {
                     setState(() {
-                      _selectedKategori = newValue;
+                      _searchQuery = query;
                     });
                     _filterBarang();
                   },
-                  items: _kategoriList
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
+                  style: GoogleFonts.poppins(),
+                  decoration: InputDecoration(
+                    labelText: 'Cari Barang',
+                    hintText: 'Masukkan nama barang',
+                    hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400),
+                    labelStyle: GoogleFonts.poppins(color: const Color(0xFF8E54E9)),
+                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF8E54E9)),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF8E54E9)),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Kategori dropdown with improved UI
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedKategori,
+                      hint: Text(
+                        'Pilih Kategori',
+                        style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                      ),
+                      style: GoogleFonts.poppins(
+                        color: Colors.black87,
+                        fontSize: 14,
+                      ),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF8E54E9)),
+                      isExpanded: true,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedKategori = newValue;
+                        });
+                        _filterBarang();
+                      },
+                      items: _kategoriList.map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: FutureBuilder<List<Barang>>(
-              future: BarangService().fetchBarang(widget.token),  // Directly use the service here
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      "Gagal memuat barang: ${snapshot.error}",
-                      style: GoogleFonts.poppins(color: Colors.red),
-                    ),
-                  );
-                }
-
-                final barangList = _filteredBarangList;
-                if (barangList.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "Belum ada barang.",
-                      style: GoogleFonts.poppins(fontSize: 16),
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.70,
+        ),
+        
+        // Statistics summary
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Text(
+                "Menampilkan ${_filteredBarangList.length} barang",
+                style: GoogleFonts.poppins(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _selectedKategori != null && _selectedKategori != 'Semua'
+                    ? "Kategori: $_selectedKategori"
+                    : "Semua Kategori",
+                style: GoogleFonts.poppins(
+                  color: const Color(0xFF8E54E9),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Grid View
+        Expanded(
+          child: _isLoading 
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
                   ),
-                  itemCount: barangList.length,
-                  itemBuilder: (context, index) {
-                    final barang = barangList[index];
-                    return Container(
-                      decoration: BoxDecoration(  
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          )
-                        ],
-                      ),
+                )
+              : _filteredBarangList.isEmpty
+                  ? Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                              child: barang.foto != null && barang.foto!.isNotEmpty
-                                  ? Image.network(
-                                      barang.foto!,// Menggunakan foto langsung dari API
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Center(
-                                        child: Icon(Icons.broken_image, size: 40),
-                                      ),
-                                    )
-                                  : const Center(
-                                      child: Icon(Icons.inventory_2_rounded, size: 60),
-                                    ),
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 80,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Tidak ada barang ditemukan",
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                            child: Text(
-                              barang.nama,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                          if (_searchQuery.isNotEmpty || _selectedKategori != 'Semua')
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _selectedKategori = 'Semua';
+                                  });
+                                  _filterBarang();
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text("Reset Filter"),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF4776E6),
+                                ),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              "Kategori: ${barang.kategori.namaKategori}",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                            child: Text(
-                              "Stok: ${barang.stok}",
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.blueAccent,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),  
-        ],
-      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.75,
+                      ),
+                      itemCount: _filteredBarangList.length,
+                      itemBuilder: (context, index) {
+                        final barang = _filteredBarangList[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BarangDetailPage(
+                                  barang: barang,
+                                  token: widget.token,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Image with gradient overlay
+                                Expanded(
+                                  child: Stack(
+                                    children: [
+                                      // Image
+                                      ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(20),
+                                        ),
+                                        child: Container(
+                                          width: double.infinity,
+                                          color: Colors.grey.shade100,
+                                          child: barang.foto != null && barang.foto!.isNotEmpty
+                                              ? Image.network(
+                                                  barang.foto!,
+                                                  fit: BoxFit.cover,
+                                                  height: double.infinity,
+                                                  errorBuilder: (_, __, ___) => Center(
+                                                    child: Icon(
+                                                      Icons.broken_image_rounded,
+                                                      size: 40,
+                                                      color: Colors.grey.shade400,
+                                                    ),
+                                                  ),
+                                                )
+                                              : Center(
+                                                  child: Icon(
+                                                    Icons.inventory_2_rounded,
+                                                    size: 50,
+                                                    color: Colors.grey.shade400,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      
+                                      // Kategori badge
+                                      Positioned(
+                                        top: 12,
+                                        left: 12,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF4776E6), Color(0xFF8E54E9)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(30),
+                                          ),
+                                          child: Text(
+                                            barang.kategori.namaKategori,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                // Content
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        barang.nama,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: barang.stok > 0
+                                                  ? Colors.green.shade50
+                                                  : Colors.red.shade50,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              "Stok: ${barang.stok}",
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                                color: barang.stok > 0
+                                                    ? Colors.green.shade700
+                                                    : Colors.red.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
     );
   }
 }
