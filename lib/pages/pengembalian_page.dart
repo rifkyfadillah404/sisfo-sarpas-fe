@@ -86,7 +86,12 @@ class _PengembalianPageState extends State<PengembalianPage> {
         }
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      print('Error saat memuat data peminjaman: $e');
+      setState(() {
+        _isLoading = false;
+        _peminjamanList = [];
+        _selectedPeminjaman = null;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat data peminjaman: $e'),

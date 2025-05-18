@@ -16,6 +16,7 @@ class BarangService {
       print(response.body); // Pastikan JSON yang diterima benar
 
       final List data = jsonDecode(response.body)['data'];
+      
       return data.map((item) => Barang.fromJson(item)).toList();
     } else {
       throw Exception('Gagal mengambil data barang');

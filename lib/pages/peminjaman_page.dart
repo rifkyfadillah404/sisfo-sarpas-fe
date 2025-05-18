@@ -23,6 +23,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
   final _alasanController = TextEditingController();
   final _jumlahController = TextEditingController();
   final _tanggalController = TextEditingController();
+  final _tanggalKembliController = TextEditingController();
 
   DateTime? _selectedDate;
   List<Barang> _barangList = [];
@@ -42,6 +43,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
     _alasanController.dispose();
     _jumlahController.dispose();
     _tanggalController.dispose();
+    _tanggalKembliController.dispose();
     super.dispose();
   }
 
@@ -138,6 +140,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
           barangId: _selectedBarang!.id,
           jumlah: jumlah,
           tanggalPinjam: _tanggalController.text,
+          tanggalKembali: _tanggalKembliController.text,
           status: 'pending',
         );
 
@@ -153,6 +156,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
 
         _formKey.currentState!.reset();
         _tanggalController.clear();
+        _tanggalKembliController.clear();
         _namaController.clear();
         _alasanController.clear();
         _jumlahController.clear();
@@ -366,6 +370,50 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
                           child: _buildTextField(
                             _tanggalController,
                             'Tanggal Pinjam',
+                            icon: Icons.calendar_today_outlined,
+                            suffix: const Icon(
+                              Icons.arrow_drop_down,
+                              color: Color(0xFF8E54E9),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20,),
+                      GestureDetector(
+                        onTap: () async {
+                          FocusScope.of(context).requestFocus(FocusNode());
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime(2100),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF4776E6),
+                                    onPrimary: Colors.white,
+                                    surface: Colors.white,
+                                    onSurface: Colors.black,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          
+                          if (picked != null) {
+                            setState(() {
+                              _selectedDate = picked;
+                              final formatter = DateFormat('yyyy-MM-dd');
+                              _tanggalKembliController.text = formatter.format(picked);
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: _buildTextField(
+                            _tanggalKembliController,
+                            'Tanggal kembali',
                             icon: Icons.calendar_today_outlined,
                             suffix: const Icon(
                               Icons.arrow_drop_down,

@@ -24,7 +24,7 @@ class Barang {
       kode: json['kode'] ?? '', // NEW
       stok: json['stok'] ?? 0,
       idKategori: json['id_kategori'] ?? 0,
-      foto: json['foto'],
+      foto: json['foto']?.toString(),
       kategori: Kategori.fromJson(json['kategori'] ?? {}),
     );
   }
