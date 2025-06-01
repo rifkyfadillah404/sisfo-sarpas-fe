@@ -23,9 +23,10 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
   final _alasanController = TextEditingController();
   final _jumlahController = TextEditingController();
   final _tanggalController = TextEditingController();
-  final _tanggalKembliController = TextEditingController();
+  final _tanggalKembaliController = TextEditingController();
 
-  DateTime? _selectedDate;
+  DateTime? _selectedPinjamDate;
+  DateTime? _selectedKembaliDate;
   List<Barang> _barangList = [];
   Barang? _selectedBarang;
   bool _isLoading = false;
@@ -39,11 +40,11 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
 
   @override
   void dispose() {
-    _namaController.dispose();
+    _namaController.dispose();  
     _alasanController.dispose();
     _jumlahController.dispose();
     _tanggalController.dispose();
-    _tanggalKembliController.dispose();
+    _tanggalKembaliController.dispose();
     super.dispose();
   }
 
@@ -65,7 +66,9 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
             selected = match.first;
           } else {
             // Jika tidak ditemukan berdasarkan ID, coba cari berdasarkan nama
-            final matchByName = list.where((b) => b.nama == widget.barangDipilih!.nama);
+            final matchByName = list.where(
+              (b) => b.nama == widget.barangDipilih!.nama,
+            );
             if (matchByName.isNotEmpty) {
               selected = matchByName.first;
             } else {
@@ -90,16 +93,16 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat barang: $e'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           margin: const EdgeInsets.all(12),
-        )
+        ),
       );
     }
   }
@@ -107,22 +110,22 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
   void _submitPeminjaman() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedBarang == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Barang belum dipilih'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             margin: const EdgeInsets.all(12),
-          )
+          ),
         );
         return;
       }
 
       setState(() => _isSubmitting = true);
-      
+
       try {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getInt('user_id');
@@ -140,7 +143,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
           barangId: _selectedBarang!.id,
           jumlah: jumlah,
           tanggalPinjam: _tanggalController.text,
-          tanggalKembali: _tanggalKembliController.text,
+          tanggalKembali: _tanggalKembaliController.text,
           status: 'pending',
         );
 
@@ -149,35 +152,38 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
             content: const Text('Peminjaman berhasil dibuat'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             margin: const EdgeInsets.all(12),
           ),
         );
 
         _formKey.currentState!.reset();
         _tanggalController.clear();
-        _tanggalKembliController.clear();
+        _tanggalKembaliController.clear();
         _namaController.clear();
         _alasanController.clear();
         _jumlahController.clear();
 
         setState(() {
           _selectedBarang = _barangList.isNotEmpty ? _barangList[0] : null;
-          _selectedDate = null;
+          _selectedPinjamDate = null;
+          _selectedKembaliDate = null;
           _isSubmitting = false;
         });
       } catch (e) {
         setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal membuat peminjaman: $e'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             margin: const EdgeInsets.all(12),
-          )
+          ),
         );
       }
     }
@@ -187,300 +193,328 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: _isLoading 
-        ? const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
-            ),
-          )
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Back Button
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4776E6).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: IconButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new,
-                                color: Color(0xFF4776E6),
-                              ),
-                              tooltip: 'Kembali ke detail barang',
-                            ),
-                          ),
-                          const Spacer(),
-                        ],
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
+                ),
+              )
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                      const SizedBox(height: 20),
-                      
-                      // Header
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF8E54E9).withOpacity(0.2),
-                                blurRadius: 20,
-                                spreadRadius: 5,
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Back Button
+                          Row(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF4776E6,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  icon: const Icon(
+                                    Icons.arrow_back_ios_new,
+                                    color: Color(0xFF4776E6),
+                                  ),
+                                  tooltip: 'Kembali ke detail barang',
+                                ),
                               ),
+                              const Spacer(),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.assignment_outlined,
-                            size: 40,
-                            color: Color(0xFF4776E6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Lengkapi Data Peminjaman',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF4776E6),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Silakan isi form berikut dengan lengkap dan benar',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Form Fields
-                      _buildTextField(
-                        _namaController, 
-                        'Nama Peminjam',
-                        icon: Icons.person_outline_rounded,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Dropdown for Barang
-                      DropdownButtonFormField<Barang>(
-                        value: _selectedBarang,
-                        items: _barangList.map((barang) {
-                          return DropdownMenuItem(
-                            value: barang,
-                            child: Text(
-                              barang.nama,
-                              style: GoogleFonts.poppins(),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (barang) => setState(() => _selectedBarang = barang),
-                        style: GoogleFonts.poppins(color: Colors.black87),
-                        decoration: _inputDecoration(
-                          'Nama Barang',
-                          Icons.inventory_2_outlined,
-                        ),
-                        validator: (value) => value == null ? 'Barang wajib dipilih' : null,
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down_rounded, 
-                          color: Color(0xFF8E54E9)
-                        ),
-                        dropdownColor: Colors.white,
-                        isExpanded: true,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      _buildTextField(
-                        _alasanController, 
-                        'Alasan Meminjam', 
-                        icon: Icons.note_alt_outlined,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      _buildTextField(
-                        _jumlahController,
-                        'Jumlah',
-                        icon: Icons.numbers_outlined,
-                        inputType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Date Picker
-                      GestureDetector(
-                        onTap: () async {
-                          FocusScope.of(context).requestFocus(FocusNode());
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF4776E6),
-                                    onPrimary: Colors.white,
-                                    surface: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          
-                          if (picked != null) {
-                            setState(() {
-                              _selectedDate = picked;
-                              final formatter = DateFormat('yyyy-MM-dd');
-                              _tanggalController.text = formatter.format(picked);
-                            });
-                          }
-                        },
-                        child: AbsorbPointer(
-                          child: _buildTextField(
-                            _tanggalController,
-                            'Tanggal Pinjam',
-                            icon: Icons.calendar_today_outlined,
-                            suffix: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Color(0xFF8E54E9),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20,),
-                      GestureDetector(
-                        onTap: () async {
-                          FocusScope.of(context).requestFocus(FocusNode());
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF4776E6),
-                                    onPrimary: Colors.white,
-                                    surface: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          
-                          if (picked != null) {
-                            setState(() {
-                              _selectedDate = picked;
-                              final formatter = DateFormat('yyyy-MM-dd');
-                              _tanggalKembliController.text = formatter.format(picked);
-                            });
-                          }
-                        },
-                        child: AbsorbPointer(
-                          child: _buildTextField(
-                            _tanggalKembliController,
-                            'Tanggal kembali',
-                            icon: Icons.calendar_today_outlined,
-                            suffix: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Color(0xFF8E54E9),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 36),
-                      
-                      // Submit Button
-                      _isSubmitting
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
-                              ),
-                            )
-                          : Container(
-                              width: double.infinity,
+                          const SizedBox(height: 20),
+
+                          // Header
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [Color(0xFF4776E6), Color(0xFF8E54E9)],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
+                                color: Colors.white,
+                                shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF8E54E9).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 6),
+                                    color: const Color(
+                                      0xFF8E54E9,
+                                    ).withOpacity(0.2),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
                                   ),
                                 ],
                               ),
-                              child: ElevatedButton.icon(
-                                onPressed: _submitPeminjaman,
-                                icon: const Icon(Icons.send_rounded),
-                                label: Text(
-                                  'KIRIM PERMINTAAN',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
+                              child: const Icon(
+                                Icons.assignment_outlined,
+                                size: 40,
+                                color: Color(0xFF4776E6),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Lengkapi Data Peminjaman',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF4776E6),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Silakan isi form berikut dengan lengkap dan benar',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Form Fields
+                          _buildTextField(
+                            _namaController,
+                            'Nama Peminjam',
+                            icon: Icons.person_outline_rounded,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Dropdown for Barang
+                          DropdownButtonFormField<Barang>(
+                            value: _selectedBarang,
+                            items:
+                                _barangList.map((barang) {
+                                  return DropdownMenuItem(
+                                    value: barang,
+                                    child: Text(
+                                      barang.nama,
+                                      style: GoogleFonts.poppins(),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                            onChanged:
+                                (barang) =>
+                                    setState(() => _selectedBarang = barang),
+                            style: GoogleFonts.poppins(color: Colors.black87),
+                            decoration: _inputDecoration(
+                              'Nama Barang',
+                              Icons.inventory_2_outlined,
+                            ),
+                            validator:
+                                (value) =>
+                                    value == null
+                                        ? 'Barang wajib dipilih'
+                                        : null,
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Color(0xFF8E54E9),
+                            ),
+                            dropdownColor: Colors.white,
+                            isExpanded: true,
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildTextField(
+                            _alasanController,
+                            'Alasan Meminjam',
+                            icon: Icons.note_alt_outlined,
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildTextField(
+                            _jumlahController,
+                            'Jumlah',
+                            icon: Icons.numbers_outlined,
+                            inputType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Date Picker
+                          GestureDetector(
+                            onTap: () async {
+                              FocusScope.of(context).requestFocus(FocusNode());
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF4776E6),
+                                        onPrimary: Colors.white,
+                                        surface: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedPinjamDate = picked;
+                                  final formatter = DateFormat('yyyy-MM-dd');
+                                  _tanggalController.text = formatter.format(
+                                    picked,
+                                  );
+                                });
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: _buildTextField(
+                                _tanggalController,
+                                'Tanggal Pinjam',
+                                icon: Icons.calendar_today_outlined,
+                                suffix: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF8E54E9),
                                 ),
                               ),
                             ),
-                    ],
+                          ),
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () async {
+                              FocusScope.of(context).requestFocus(FocusNode());
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF4776E6),
+                                        onPrimary: Colors.white,
+                                        surface: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedKembaliDate = picked;
+                                  final formatter = DateFormat('yyyy-MM-dd');
+                                  _tanggalKembaliController.text = formatter
+                                      .format(picked);
+                                });
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: _buildTextField(
+                                _tanggalKembaliController,
+                                'Tanggal kembali',
+                                icon: Icons.calendar_today_outlined,
+                                suffix: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF8E54E9),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 36),
+
+                          // Submit Button
+                          _isSubmitting
+                              ? const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF8E54E9),
+                                  ),
+                                ),
+                              )
+                              : Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      Color(0xFF4776E6),
+                                      Color(0xFF8E54E9),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF8E54E9,
+                                      ).withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton.icon(
+                                  onPressed: _submitPeminjaman,
+                                  icon: const Icon(Icons.send_rounded),
+                                  label: Text(
+                                    'KIRIM PERMINTAAN',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 18,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon, {Widget? suffix}) {
+  InputDecoration _inputDecoration(
+    String label,
+    IconData icon, {
+    Widget? suffix,
+  }) {
     return InputDecoration(
       labelText: label,
       labelStyle: GoogleFonts.poppins(color: Colors.grey),
@@ -522,7 +556,8 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
       maxLines: maxLines,
       style: GoogleFonts.poppins(),
       decoration: _inputDecoration(label, icon ?? Icons.edit, suffix: suffix),
-      validator: (value) => value == null || value.isEmpty ? 'Wajib diisi' : null,
+      validator:
+          (value) => value == null || value.isEmpty ? 'Wajib diisi' : null,
     );
   }
 }

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sisfo_fe/pages/RiwayatPeminjamanPage.dart';
 import 'package:sisfo_fe/pages/barang_page.dart';
-import 'package:sisfo_fe/pages/peminjaman_page.dart';
-import 'package:sisfo_fe/pages/pengembalian_page.dart';
 import 'package:sisfo_fe/pages/profile_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -22,9 +20,7 @@ class _HomePageState extends State<HomePage> {
   late final List<Widget> _pages;
   final List<String> _titles = [
     'Katalog Barang',
-    'Form Peminjaman',
-    'Pengembalian',
-    'Riwayat Peminjaman',
+    'Riwayat',
     'Profil Saya'
   ];
 
@@ -33,8 +29,6 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _pages = [
       BarangPage(token: widget.token),
-      PeminjamanPage(token: widget.token),
-      PengembalianPage(token: widget.token),
       RiwayatPeminjamanPage(token: widget.token),
       ProfileScreen(
         token: widget.token,
@@ -157,16 +151,6 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(Icons.inventory_2_outlined),
                 activeIcon: Icon(Icons.inventory_2),
                 label: 'Barang',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.add_circle_outline),
-                activeIcon: Icon(Icons.add_circle),
-                label: 'Pinjam',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.assignment_return_outlined),
-                activeIcon: Icon(Icons.assignment_return),
-                label: 'Kembali',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.history_outlined),

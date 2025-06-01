@@ -61,22 +61,6 @@ class BarangDetailPage extends StatelessWidget {
                         color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: IconButton(
-                        onPressed: () {
-                          // TODO: Implement share function
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Berbagi info barang'),
-                              backgroundColor: Colors.black87,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              margin: const EdgeInsets.all(12),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.share_outlined, color: Colors.white),
-                      ),
                     ),
                   ],
                 ),
