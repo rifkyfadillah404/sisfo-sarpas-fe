@@ -3,17 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sisfo_fe/models/pengembalian_model.dart';
 import 'package:sisfo_fe/models/peminjaman_model.dart';
 import 'package:sisfo_fe/service/pengembalian_service.dart';
-import 'package:sisfo_fe/service/peminjaman_service.dart';
 import 'package:intl/intl.dart';
 
 class PengembalianPage extends StatefulWidget {
   final String token;
   final Peminjaman? selectedPeminjaman;
-  
+
   const PengembalianPage({
-    super.key, 
-    required this.token, 
-    this.selectedPeminjaman
+    super.key,
+    required this.token,
+    this.selectedPeminjaman,
   });
 
   @override
@@ -30,7 +29,6 @@ class _PengembalianPageState extends State<PengembalianPage> {
   final _pengembalianService = PengembalianService();
 
   DateTime? _tanggalKembali;
-  List<Peminjaman> _peminjamanList = [];
   Peminjaman? _selectedPeminjaman;
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -41,55 +39,47 @@ class _PengembalianPageState extends State<PengembalianPage> {
     _loadPeminjamanUser();
   }
 
-  // Function to load peminjaman list and filter items that are not returned yet
+  // Function to initialize the selected peminjaman
   Future<void> _loadPeminjamanUser() async {
     setState(() => _isLoading = true);
     try {
-      final list = await PeminjamanService.fetchPeminjamanUser(widget.token);
-
-      // Filter only peminjaman that are not returned or rejected
-      final belumDikembalikan = list.where((p) =>
-          p.status != 'returned' && p.status != 'rejected').toList();
-
-      // Cari selectedPeminjaman dalam list
-      Peminjaman? selectedFromList;
+      // If a specific peminjaman is passed, use it directly
       if (widget.selectedPeminjaman != null) {
-        // Cari peminjaman dengan ID yang sama
-        final matches = belumDikembalikan.where((p) => p.id == widget.selectedPeminjaman!.id);
-        if (matches.isNotEmpty) {
-          selectedFromList = matches.first;
-        } else {
-          // Jika tidak ditemukan, tambahkan ke list (jika statusnya cocok)
-          if (widget.selectedPeminjaman!.status != 'returned' && 
-              widget.selectedPeminjaman!.status != 'rejected') {
-            belumDikembalikan.add(widget.selectedPeminjaman!);
-            selectedFromList = widget.selectedPeminjaman;
-          }
-        }
-      }
+        setState(() {
+          _selectedPeminjaman = widget.selectedPeminjaman;
+          _isLoading = false;
 
-      setState(() {
-        _peminjamanList = belumDikembalikan;
-        _selectedPeminjaman = selectedFromList ?? 
-            (belumDikembalikan.isNotEmpty ? belumDikembalikan.first : null);
-        _isLoading = false;
-        
-        // Isi form dengan data peminjaman yang dipilih
-        if (_selectedPeminjaman != null) {
+          // Fill form with selected peminjaman data
           _namaController.text = _selectedPeminjaman!.namaPeminjam;
           _jumlahController.text = _selectedPeminjaman!.jumlah.toString();
-          // Set tanggal hari ini sebagai default
+          // Set today's date as default return date
           final now = DateTime.now();
           _tanggalKembali = now;
           final formatter = DateFormat('yyyy-MM-dd');
           _tanggalController.text = formatter.format(now);
-        }
-      });
+        });
+      } else {
+        // If no specific peminjaman is passed, show error
+        setState(() {
+          _isLoading = false;
+          _selectedPeminjaman = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Tidak ada peminjaman yang dipilih'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(12),
+          ),
+        );
+      }
     } catch (e) {
       print('Error saat memuat data peminjaman: $e');
       setState(() {
         _isLoading = false;
-        _peminjamanList = [];
         _selectedPeminjaman = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +87,9 @@ class _PengembalianPageState extends State<PengembalianPage> {
           content: Text('Gagal memuat data peminjaman: $e'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           margin: const EdgeInsets.all(12),
         ),
       );
@@ -106,10 +98,11 @@ class _PengembalianPageState extends State<PengembalianPage> {
 
   // Date picker for picking tanggal kembali
   Future<void> _pickTanggalKembali() async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2023),
+      initialDate: now,
+      firstDate: now, // hanya bisa memilih hari ini atau ke depan
       lastDate: DateTime(2100),
       builder: (context, child) {
         return Theme(
@@ -125,7 +118,7 @@ class _PengembalianPageState extends State<PengembalianPage> {
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         _tanggalKembali = picked;
@@ -144,7 +137,9 @@ class _PengembalianPageState extends State<PengembalianPage> {
             content: const Text('Lengkapi data terlebih dahulu'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             margin: const EdgeInsets.all(12),
           ),
         );
@@ -175,23 +170,23 @@ class _PengembalianPageState extends State<PengembalianPage> {
               content: const Text('Pengembalian berhasil dikirim!'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               margin: const EdgeInsets.all(12),
             ),
           );
-          
+
           _formKey.currentState!.reset();
           _namaController.clear();
           _jumlahController.clear();
           _kondisiController.clear();
           _tanggalController.clear();
 
-          // Update peminjaman list after successful return
-          _loadPeminjamanUser(); // Reload the peminjaman list
+          // Navigate back after successful return
+          Navigator.pop(context);
 
           setState(() {
-            _selectedPeminjaman =
-                _peminjamanList.isNotEmpty ? _peminjamanList[0] : null;
             _tanggalKembali = null;
           });
         } else {
@@ -203,7 +198,9 @@ class _PengembalianPageState extends State<PengembalianPage> {
             content: Text('Gagal mengirim pengembalian: $e'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             margin: const EdgeInsets.all(12),
           ),
         );
@@ -226,229 +223,393 @@ class _PengembalianPageState extends State<PengembalianPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: _isLoading
-        ? const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
-            ),
-          )
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Tombol Back
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4776E6).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: IconButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new,
-                                color: Color(0xFF4776E6),
-                              ),
-                              tooltip: 'Kembali ke riwayat',
-                            ),
-                          ),
-                          const Spacer(),
-                        ],
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
+                ),
+              )
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                      const SizedBox(height: 20),
-                      
-                      // Header with icon
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF8E54E9).withOpacity(0.2),
-                                blurRadius: 20,
-                                spreadRadius: 5,
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Tombol Back
+                          Row(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF4776E6,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  icon: const Icon(
+                                    Icons.arrow_back_ios_new,
+                                    color: Color(0xFF4776E6),
+                                  ),
+                                  tooltip: 'Kembali ke riwayat',
+                                ),
                               ),
+                              const Spacer(),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.assignment_return_outlined,
-                            size: 40,
-                            color: Color(0xFF4776E6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Title and subtitle
-                      Text(
-                        'Form Pengembalian Barang',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF4776E6),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Silakan isi form pengembalian dengan lengkap dan benar',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Form fields
-                      _buildTextField(
-                        _namaController, 
-                        'Nama Pengembali',
-                        icon: Icons.person_outline_rounded,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Dropdown for Peminjaman
-                      DropdownButtonFormField<Peminjaman>(
-                        value: _selectedPeminjaman,
-                        items: _peminjamanList.map((p) {
-                          final barangNama = p.barang?.nama ?? 'Barang tidak ditemukan';
-                          return DropdownMenuItem(
-                            value: p,
-                            child: Text(
-                              '${p.namaPeminjam} - $barangNama',
-                              style: GoogleFonts.poppins(),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setState(() => _selectedPeminjaman = val),
-                        style: GoogleFonts.poppins(color: Colors.black87),
-                        decoration: _inputDecoration(
-                          'Pilih Peminjaman',
-                          Icons.list_alt_rounded,
-                        ),
-                        validator: (val) => val == null ? 'Peminjaman wajib dipilih' : null,
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down_rounded, 
-                          color: Color(0xFF8E54E9)
-                        ),
-                        dropdownColor: Colors.white,
-                        isExpanded: true,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Date picker
-                      GestureDetector(
-                        onTap: _pickTanggalKembali,
-                        child: AbsorbPointer(
-                          child: _buildTextField(
-                            _tanggalController,
-                            'Tanggal Kembali',
-                            icon: Icons.calendar_today_outlined,
-                            suffix: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Color(0xFF8E54E9),
+                          const SizedBox(height: 20),
+
+                          // Header with icon
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF8E54E9,
+                                    ).withOpacity(0.2),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.assignment_return_outlined,
+                                size: 40,
+                                color: Color(0xFF4776E6),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      _buildTextField(
-                        _jumlahController,
-                        'Jumlah Dikembalikan',
-                        icon: Icons.numbers_outlined,
-                        inputType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      _buildTextField(
-                        _kondisiController, 
-                        'Kondisi Barang', 
-                        icon: Icons.info_outline_rounded,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 36),
-                      
-                      // Submit Button
-                      _isSubmitting
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E54E9)),
+                          const SizedBox(height: 16),
+
+                          // Title and subtitle
+                          Text(
+                            'Form Pengembalian Barang',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF4776E6),
                             ),
-                          )
-                        : Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [Color(0xFF4776E6), Color(0xFF8E54E9)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF8E54E9).withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Silakan isi form pengembalian dengan lengkap dan benar',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey,
                             ),
-                            child: ElevatedButton.icon(
-                              onPressed: _submitPengembalian,
-                              icon: const Icon(Icons.assignment_return_outlined),
-                              label: Text(
-                                'KIRIM PENGEMBALIAN',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1,
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Form fields
+                          _buildTextField(
+                            _namaController,
+                            'Nama Pengembali',
+                            icon: Icons.person_outline_rounded,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Selected Item Display
+                          _buildSelectedItemDisplay(),
+                          const SizedBox(height: 20),
+
+                          // Date picker
+                          GestureDetector(
+                            onTap: _pickTanggalKembali,
+                            child: AbsorbPointer(
+                              child: _buildTextField(
+                                _tanggalController,
+                                'Tanggal Kembali',
+                                icon: Icons.calendar_today_outlined,
+                                suffix: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF8E54E9),
                                 ),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                shape: RoundedRectangleBorder(
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Read-only quantity field
+                          _buildReadOnlyQuantityField(),
+                          const SizedBox(height: 20),
+
+                          _buildTextField(
+                            _kondisiController,
+                            'Kondisi Barang',
+                            icon: Icons.info_outline_rounded,
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 36),
+
+                          // Submit Button
+                          _isSubmitting
+                              ? const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF8E54E9),
+                                  ),
+                                ),
+                              )
+                              : Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      Color(0xFF4776E6),
+                                      Color(0xFF8E54E9),
+                                    ],
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF8E54E9,
+                                      ).withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton.icon(
+                                  onPressed: _submitPengembalian,
+                                  icon: const Icon(
+                                    Icons.assignment_return_outlined,
+                                  ),
+                                  label: Text(
+                                    'KIRIM PENGEMBALIAN',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 18,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon, {Widget? suffix}) {
+  Widget _buildSelectedItemDisplay() {
+    if (_selectedPeminjaman == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Tidak ada peminjaman yang dipilih',
+                style: GoogleFonts.poppins(
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final barangNama =
+        _selectedPeminjaman!.barang?.nama ?? 'Barang tidak ditemukan';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.inventory_2_outlined, color: Colors.blue.shade600),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Barang yang Akan Dikembalikan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.label_outline,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Nama Barang:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  barangNama,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Peminjam:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedPeminjaman!.namaPeminjam,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyQuantityField() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.numbers_outlined, color: Colors.grey.shade600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jumlah Dikembalikan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _jumlahController.text.isEmpty
+                      ? '0'
+                      : '${_jumlahController.text} unit (semua yang dipinjam)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color:
+                        _jumlahController.text.isEmpty
+                            ? Colors.grey.shade500
+                            : Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.lock_outline, color: Colors.grey.shade500, size: 20),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String label,
+    IconData icon, {
+    Widget? suffix,
+  }) {
     return InputDecoration(
       labelText: label,
       labelStyle: GoogleFonts.poppins(color: Colors.grey),
@@ -490,7 +651,8 @@ class _PengembalianPageState extends State<PengembalianPage> {
       maxLines: maxLines,
       style: GoogleFonts.poppins(),
       decoration: _inputDecoration(label, icon ?? Icons.edit, suffix: suffix),
-      validator: (value) => value == null || value.isEmpty ? 'Wajib diisi' : null,
+      validator:
+          (value) => value == null || value.isEmpty ? 'Wajib diisi' : null,
     );
   }
 }

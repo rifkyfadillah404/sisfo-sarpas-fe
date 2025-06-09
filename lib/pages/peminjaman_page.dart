@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sisfo_fe/service/peminjaman_service.dart';
-import 'package:sisfo_fe/service/barang_service.dart';
 import 'package:sisfo_fe/models/barang_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -27,20 +26,42 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
 
   DateTime? _selectedPinjamDate;
   DateTime? _selectedKembaliDate;
-  List<Barang> _barangList = [];
   Barang? _selectedBarang;
   bool _isLoading = false;
   bool _isSubmitting = false;
 
+  // New variables for user name functionality
+  bool _useLoggedInUser = true;
+  String _loggedInUserName = '';
+  bool _isLoadingUserData = true;
+
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     _loadBarang();
+  }
+
+  void _loadUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userName = prefs.getString('user_name') ?? '';
+
+      setState(() {
+        _loggedInUserName = userName;
+        _isLoadingUserData = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loggedInUserName = '';
+        _isLoadingUserData = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _namaController.dispose();  
+    _namaController.dispose();
     _alasanController.dispose();
     _jumlahController.dispose();
     _tanggalController.dispose();
@@ -51,46 +72,30 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
   void _loadBarang() async {
     setState(() => _isLoading = true);
     try {
-      final list = await BarangService().fetchBarang(widget.token);
-      if (list.isEmpty) {
-        throw Exception("Tidak ada barang yang tersedia");
-      }
-
-      // Mencari barang yang dipilih dari halaman detail
-      Barang? selected;
+      // If a specific barang is passed, use it directly
       if (widget.barangDipilih != null) {
-        try {
-          // Cari barang berdasarkan ID
-          final match = list.where((b) => b.id == widget.barangDipilih!.id);
-          if (match.isNotEmpty) {
-            selected = match.first;
-          } else {
-            // Jika tidak ditemukan berdasarkan ID, coba cari berdasarkan nama
-            final matchByName = list.where(
-              (b) => b.nama == widget.barangDipilih!.nama,
-            );
-            if (matchByName.isNotEmpty) {
-              selected = matchByName.first;
-            } else {
-              // Jika tetap tidak ditemukan, gunakan barang yang dipilih langsung
-              // dan tambahkan ke daftar agar bisa dipilih di dropdown
-              selected = widget.barangDipilih;
-              list.add(widget.barangDipilih!);
-            }
-          }
-        } catch (e) {
-          // Penanganan error saat mencari barang
-          print("Error saat mencari barang dipilih: $e");
-          // Gunakan barang pertama dari list sebagai fallback
-          selected = list.first;
-        }
+        setState(() {
+          _selectedBarang = widget.barangDipilih;
+          _isLoading = false;
+        });
+      } else {
+        // If no specific barang is passed, show error
+        setState(() {
+          _isLoading = false;
+          _selectedBarang = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Tidak ada barang yang dipilih'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(12),
+          ),
+        );
       }
-
-      setState(() {
-        _barangList = list;
-        _selectedBarang = selected ?? list.first;
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,6 +114,39 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
 
   void _submitPeminjaman() async {
     if (_formKey.currentState!.validate()) {
+      // Validate name selection
+      if (_useLoggedInUser && _loggedInUserName.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Nama pengguna tidak tersedia. Silakan pilih "Masukkan nama lain"',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(12),
+          ),
+        );
+        return;
+      }
+
+      if (!_useLoggedInUser && _namaController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Nama peminjam wajib diisi'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(12),
+          ),
+        );
+        return;
+      }
+
       if (_selectedBarang == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -135,10 +173,14 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
         final jumlah = int.tryParse(_jumlahController.text);
         if (jumlah == null) throw Exception("Jumlah harus berupa angka");
 
+        // Determine which name to use
+        final namaPeminjam =
+            _useLoggedInUser ? _loggedInUserName : _namaController.text;
+
         await PeminjamanService.createPeminjaman(
           token: widget.token,
           userId: userId,
-          namaPeminjam: _namaController.text,
+          namaPeminjam: namaPeminjam,
           alasanMeminjam: _alasanController.text,
           barangId: _selectedBarang!.id,
           jumlah: jumlah,
@@ -166,8 +208,10 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
         _alasanController.clear();
         _jumlahController.clear();
 
+        // Navigate back after successful submission
+        Navigator.pop(context);
+
         setState(() {
-          _selectedBarang = _barangList.isNotEmpty ? _barangList[0] : null;
           _selectedPinjamDate = null;
           _selectedKembaliDate = null;
           _isSubmitting = false;
@@ -293,47 +337,11 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
                           const SizedBox(height: 32),
 
                           // Form Fields
-                          _buildTextField(
-                            _namaController,
-                            'Nama Peminjam',
-                            icon: Icons.person_outline_rounded,
-                          ),
+                          _buildNameSection(),
                           const SizedBox(height: 20),
 
-                          // Dropdown for Barang
-                          DropdownButtonFormField<Barang>(
-                            value: _selectedBarang,
-                            items:
-                                _barangList.map((barang) {
-                                  return DropdownMenuItem(
-                                    value: barang,
-                                    child: Text(
-                                      barang.nama,
-                                      style: GoogleFonts.poppins(),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  );
-                                }).toList(),
-                            onChanged:
-                                (barang) =>
-                                    setState(() => _selectedBarang = barang),
-                            style: GoogleFonts.poppins(color: Colors.black87),
-                            decoration: _inputDecoration(
-                              'Nama Barang',
-                              Icons.inventory_2_outlined,
-                            ),
-                            validator:
-                                (value) =>
-                                    value == null
-                                        ? 'Barang wajib dipilih'
-                                        : null,
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF8E54E9),
-                            ),
-                            dropdownColor: Colors.white,
-                            isExpanded: true,
-                          ),
+                          // Selected Item Display
+                          _buildSelectedItemDisplay(),
                           const SizedBox(height: 20),
 
                           _buildTextField(
@@ -379,10 +387,15 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
                               if (picked != null) {
                                 setState(() {
                                   _selectedPinjamDate = picked;
+                                  _selectedKembaliDate =
+                                      picked; // Set return date same as borrow date
                                   final formatter = DateFormat('yyyy-MM-dd');
                                   _tanggalController.text = formatter.format(
                                     picked,
                                   );
+                                  // Automatically set return date to be the same
+                                  _tanggalKembaliController.text = formatter
+                                      .format(picked);
                                 });
                               }
                             },
@@ -399,48 +412,58 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          GestureDetector(
-                            onTap: () async {
-                              FocusScope.of(context).requestFocus(FocusNode());
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime(2100),
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                        primary: Color(0xFF4776E6),
-                                        onPrimary: Colors.white,
-                                        surface: Colors.white,
-                                        onSurface: Colors.black,
-                                      ),
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
 
-                              if (picked != null) {
-                                setState(() {
-                                  _selectedKembaliDate = picked;
-                                  final formatter = DateFormat('yyyy-MM-dd');
-                                  _tanggalKembaliController.text = formatter
-                                      .format(picked);
-                                });
-                              }
-                            },
-                            child: AbsorbPointer(
-                              child: _buildTextField(
-                                _tanggalKembaliController,
-                                'Tanggal kembali',
-                                icon: Icons.calendar_today_outlined,
-                                suffix: const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Color(0xFF8E54E9),
+                          // Read-only return date field (automatically same as borrow date)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  color: Colors.grey.shade600,
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tanggal Kembali',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _tanggalKembaliController.text.isEmpty
+                                            ? 'Sama dengan tanggal pinjam'
+                                            : _tanggalKembaliController.text,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          color:
+                                              _tanggalKembaliController
+                                                      .text
+                                                      .isEmpty
+                                                  ? Colors.grey.shade500
+                                                  : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.grey.shade500,
+                                  size: 20,
+                                ),
+                              ],
                             ),
                           ),
 
@@ -510,6 +533,331 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
     );
   }
 
+  Widget _buildSelectedItemDisplay() {
+    if (_selectedBarang == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Tidak ada barang yang dipilih',
+                style: GoogleFonts.poppins(
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.inventory_2_outlined, color: Colors.blue.shade600),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Barang yang Akan Dipinjam',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.label_outline,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Nama Barang:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedBarang!.nama,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.inventory_outlined,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Stok Tersedia:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_selectedBarang!.stok} unit',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color:
+                        _selectedBarang!.stok > 0
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.category_outlined,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Kategori:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedBarang!.kategori.namaKategori,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Toggle Section
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nama Peminjam',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF4776E6),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Option 1: Use logged-in user
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _useLoggedInUser = true;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color:
+                        _useLoggedInUser
+                            ? const Color(0xFF4776E6).withOpacity(0.1)
+                            : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color:
+                          _useLoggedInUser
+                              ? const Color(0xFF4776E6)
+                              : Colors.grey.shade300,
+                      width: _useLoggedInUser ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _useLoggedInUser
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color:
+                            _useLoggedInUser
+                                ? const Color(0xFF4776E6)
+                                : Colors.grey,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Gunakan nama saya',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w500,
+                                color:
+                                    _useLoggedInUser
+                                        ? const Color(0xFF4776E6)
+                                        : Colors.black87,
+                              ),
+                            ),
+                            if (_isLoadingUserData)
+                              Text(
+                                'Memuat...',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              )
+                            else
+                              Text(
+                                _loggedInUserName.isNotEmpty
+                                    ? _loggedInUserName
+                                    : 'Nama tidak tersedia',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Option 2: Manual input
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _useLoggedInUser = false;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color:
+                        !_useLoggedInUser
+                            ? const Color(0xFF4776E6).withOpacity(0.1)
+                            : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color:
+                          !_useLoggedInUser
+                              ? const Color(0xFF4776E6)
+                              : Colors.grey.shade300,
+                      width: !_useLoggedInUser ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        !_useLoggedInUser
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color:
+                            !_useLoggedInUser
+                                ? const Color(0xFF4776E6)
+                                : Colors.grey,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Masukkan nama lain',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w500,
+                            color:
+                                !_useLoggedInUser
+                                    ? const Color(0xFF4776E6)
+                                    : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Manual input field (shown only when not using logged-in user)
+        if (!_useLoggedInUser) ...[
+          const SizedBox(height: 16),
+          _buildTextField(
+            _namaController,
+            'Masukkan Nama Peminjam',
+            icon: Icons.person_outline_rounded,
+            isRequired: true, // Required when manual input is selected
+          ),
+        ],
+      ],
+    );
+  }
+
   InputDecoration _inputDecoration(
     String label,
     IconData icon, {
@@ -549,6 +897,7 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
     IconData? icon,
     Widget? suffix,
     int maxLines = 1,
+    bool isRequired = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -557,7 +906,9 @@ class _PeminjamanPageState extends State<PeminjamanPage> {
       style: GoogleFonts.poppins(),
       decoration: _inputDecoration(label, icon ?? Icons.edit, suffix: suffix),
       validator:
-          (value) => value == null || value.isEmpty ? 'Wajib diisi' : null,
+          isRequired
+              ? (value) => value == null || value.isEmpty ? 'Wajib diisi' : null
+              : null,
     );
   }
 }
