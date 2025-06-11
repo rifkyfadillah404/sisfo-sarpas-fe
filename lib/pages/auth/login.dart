@@ -59,57 +59,167 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final url = Uri.parse('http://127.0.0.1:8000/api/login');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': _emailController.text,
-          'password': _passwordController.text,
-        }),
-      );
+
+      http.Response response;
+      try {
+        response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': _emailController.text.trim(),
+            'password': _passwordController.text,
+          }),
+        );
+      } catch (e) {
+        // Network error during request
+        if (mounted) {
+          setState(() {
+            _errorMessage =
+                'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
       // Check if widget is still mounted before updating state
       if (!mounted) return;
 
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      // Handle response based on status code
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['access_token'];
-        final userId = data['user']['id'];
-        final userName = data['user']['name'] ?? '';
-        final userEmail = data['user']['email'] ?? '';
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('access_token', token);
-        await prefs.setInt('user_id', userId);
-        await prefs.setString('user_name', userName);
-        await prefs.setString('email', userEmail);
-
-        // Check if widget is still mounted before navigating
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => HomePage(token: token)),
-        );
-      } else {
-        // Handle different error responses
-        Map<String, dynamic> data;
+        // Success - parse response and navigate
         try {
-          data = jsonDecode(response.body);
-          setState(() {
-            _errorMessage =
-                data['message'] ?? 'Login gagal. Silakan coba lagi.';
-          });
+          final data = jsonDecode(response.body);
+          final token = data['access_token'];
+          final userId = data['user']['id'];
+          final userName = data['user']['name'] ?? '';
+          final userEmail = data['user']['email'] ?? '';
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('access_token', token);
+          await prefs.setInt('user_id', userId);
+          await prefs.setString('user_name', userName);
+          await prefs.setString('email', userEmail);
+
+          // Check if widget is still mounted before navigating
+          if (!mounted) return;
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => HomePage(token: token)),
+          );
         } catch (e) {
-          setState(() {
-            _errorMessage = 'Login gagal. Silakan coba lagi.';
-          });
+          // Error parsing success response
+          if (mounted) {
+            setState(() {
+              _errorMessage =
+                  'Terjadi kesalahan saat memproses respons server.';
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        // Error response - handle different status codes
+        String errorMessage;
+
+        print('Login failed with status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
+        // Handle Laravel validation errors (status 422)
+        if (response.statusCode == 422) {
+          try {
+            final data = jsonDecode(response.body);
+
+            // Laravel validation error format: {"message": "...", "errors": {"field": ["error1", "error2"]}}
+            if (data['errors'] != null) {
+              final errors = data['errors'] as Map<String, dynamic>;
+
+              // Check if it's an email/credential error (from ValidationException)
+              if (errors.containsKey('email')) {
+                errorMessage =
+                    'Email atau password salah. Silakan periksa kembali.';
+              } else {
+                // Other validation errors
+                final errorMessages = <String>[];
+                errors.forEach((field, messages) {
+                  if (messages is List) {
+                    errorMessages.addAll(messages.cast<String>());
+                  }
+                });
+                errorMessage =
+                    errorMessages.isNotEmpty
+                        ? errorMessages.join(', ')
+                        : 'Data yang dimasukkan tidak valid.';
+              }
+            } else if (data['message'] != null) {
+              // Fallback to message field
+              errorMessage =
+                  'Email atau password salah. Silakan periksa kembali.';
+            } else {
+              errorMessage =
+                  'Email atau password salah. Silakan periksa kembali.';
+            }
+          } catch (e) {
+            print('Error parsing validation response: $e');
+            errorMessage =
+                'Email atau password salah. Silakan periksa kembali.';
+          }
+        } else if (response.statusCode == 401) {
+          errorMessage = 'Email atau password salah. Silakan periksa kembali.';
+        } else if (response.statusCode == 404) {
+          errorMessage = 'Email tidak terdaftar. Silakan periksa email Anda.';
+        } else if (response.statusCode >= 500) {
+          errorMessage = 'Terjadi kesalahan server. Silakan coba lagi nanti.';
+        } else {
+          // Try to get message from response for other status codes
+          try {
+            final data = jsonDecode(response.body);
+            errorMessage = data['message'] ?? 'Login gagal. Silakan coba lagi.';
+          } catch (e) {
+            print('Error parsing error response: $e');
+            errorMessage = 'Login gagal. Silakan coba lagi.';
+          }
         }
 
-        // Also show a snackbar for immediate feedback
+        // Update UI with error
+        if (mounted) {
+          setState(() {
+            _errorMessage = errorMessage;
+            _isLoading = false;
+          });
+
+          // Show snackbar for immediate feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(12),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Handle any unexpected errors
+      print('Unexpected error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Terjadi kesalahan yang tidak terduga. Silakan coba lagi.';
+          _isLoading = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_errorMessage!),
+            content: const Text(
+              'Terjadi kesalahan yang tidak terduga. Silakan coba lagi.',
+            ),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -118,13 +228,6 @@ class _LoginPageState extends State<LoginPage> {
             margin: const EdgeInsets.all(12),
           ),
         );
-      }
-    } catch (e) {
-      // Handle network or other errors
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Terjadi kesalahan: ${e.toString()}';
-        });
       }
     } finally {
       // Make sure to update loading state if widget is still mounted
@@ -137,14 +240,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF4776E6), Color(0xFF8E54E9)],
-          ),
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -173,7 +271,7 @@ class _LoginPageState extends State<LoginPage> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.purple.withOpacity(0.2),
+                            color: Colors.purple.withValues(alpha: 0.2),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -363,7 +461,9 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF8E54E9).withOpacity(0.3),
+                                color: const Color(
+                                  0xFF8E54E9,
+                                ).withValues(alpha: 0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
